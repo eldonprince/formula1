@@ -1,4 +1,3 @@
-library(formula1data)
 library(tidyverse)
 
 f1_cols <- c("mercedes" = rgb(86, 206, 190, maxColorValue = 255),
@@ -12,8 +11,24 @@ f1_cols <- c("mercedes" = rgb(86, 206, 190, maxColorValue = 255),
              "williams" = rgb(15, 93, 248, maxColorValue = 255),
              "haas" = rgb(150, 150, 150, maxColorValue = 255))
 
-c_dat <- list()
+dats <- read_rds("f1dats.rds")
 
+#Example ggplot2
+ggplot(dats %>% 
+         filter(constructor %in% c("McLaren", "Ferrari", "Mercedes", "Red Bull", "Aston Martin", "AlphaTauri", "Alfa Romeo", "Haas F1 Team", "Williams")) %>% 
+         filter(year >= 1980) %>% 
+         group_by(year, constructor) %>% 
+         distinct(pointsSeasonConstructorFinal, positionSeasonConstructorFinal, pointsYearTotal) %>% 
+         mutate(points_pct = pointsSeasonConstructorFinal / pointsYearTotal), 
+       aes(year, points_pct, fill = constructor, label = positionSeasonConstructorFinal)) + 
+  geom_area(position = position_dodge(width = 1), show.legend = FALSE) +
+  geom_text(size = 3, show.legend = FALSE, vjust = -1, position = position_dodge(width = 1), col = "black") +
+  facet_grid(constructor~.) 
+
+
+
+#Legacy work from first day we worked on this
+c_dat <- list()
 for(i in 1958:2021) {
 c_dat[[i]] <- getFinalF1Standings(i, type = "constructor") %>% mutate(year = i)
 }
@@ -22,7 +37,8 @@ c_dats <- bind_rows(c_dat) %>%
   mutate(max_position = max(position),
          total_points = sum(points)) %>% 
   ungroup() %>% 
-  mutate(points_pct = points / total_points) %>% 
+  mutate(points_pct = points / total_points,
+         position_size = max_position + 1 - position) %>% 
   mutate(team = case_when(constructorId %in% c("alfa", "bmw_sauber", "sauber") ~ "alfa_romeo",
                           constructorId %in% c("alphatauri", "toro_rosso", "minardi") ~ "alphatauri",
                           constructorId %in% c("alpine", "benetton", "renault", "lotus_f1") ~ "alpine",
@@ -30,6 +46,9 @@ c_dats <- bind_rows(c_dat) %>%
                           constructorId %in% c("mercedes", "tyrrell", "bar", "honda", "brawn") ~ "mercedes",
                           constructorId %in% c("red_bull", "stewart", "jaguar") ~ "red_bull",
                           TRUE ~ constructorId))
+
+
+
 
 c_order <- c_dats %>% group_by(team) %>% summarise(points = sum(points)) %>% arrange(desc(points))
 c_dats$team <- factor(c_dats$team, levels = rev(c_order$team))
